@@ -1,0 +1,5 @@
+customer_segment,AvgDeliveryDays,AvgDiscount,TotalProfit,TotalSales,AvgShipCost
+Consumer,1.94,0.05,49882.7,398177.72,12.12
+Corporate,1.86,0.05,54444.22,657784.53,12.94
+Home Office,2.04,0.05,54433.47,464481.04,12.43
+Small Business,1.96,0.05,65304.96,400293.94,14.58

@@ -1,0 +1,6 @@
+order_priority,AvgDeliveryDays,AvgDiscount,TotalProfit,TotalSales,AvgShipCost
+Critical,1.41,0.05,38293.49,441409.38,13.1
+High,1.35,0.05,36500.44,310095.48,13.32
+Low,4.05,0.05,35414.91,379127.34,13.83
+Medium,1.41,0.05,43370.16,370078.81,12.69
+Not Specified,1.42,0.05,70486.35,420026.22,11.9

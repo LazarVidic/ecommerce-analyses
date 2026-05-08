@@ -1,0 +1,18 @@
+product_subcategory,AvgDeliveryDay,AvgDiscount,TotalProfit,TotalSales,AvgShipCost
+Appliances,2.14,0.05,12594.82,82201.15,15.9
+Binders and Binder Accessories,1.93,0.05,59296.43,185928.14,7.47
+Bookcases,2.19,0.05,-930.42,107796.09,45.53
+Chairs & Chairmats,1.97,0.05,48695.83,261072.73,40.45
+Computer Peripherals,1.88,0.05,1685.76,92660.65,6.3
+Copiers and Fax,2.44,0.05,23990.2,99069.48,26.5
+Envelopes,2.36,0.05,-1194.41,10479.77,6.07
+Labels,1.62,0.05,7028.13,4914.82,1.31
+Office Furnishings,1.96,0.05,18724.15,98070.91,10.5
+Office Machines,2.0,0.05,8824.4,318169.68,20.04
+Paper,1.87,0.05,7769.29,55813.92,6.26
+Pens & Art Supplies,1.86,0.05,-257.63,26071.61,3.09
+Rubber Bands,2.41,0.05,-1544.85,1789.43,1.37
+"Scissors, Rulers and Trimmers",1.61,0.05,-1291.11,6752.18,4.55
+Storage & Organization,2.14,0.05,7124.3,177417.6,18.88
+Tables,1.51,0.06,-7240.1,193764.58,58.72
+Telephones and Communication,1.93,0.05,40790.56,198764.49,5.51

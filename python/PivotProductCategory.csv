@@ -1,0 +1,4 @@
+product_category,AvgDeliveryDay,AvgDiscount,TotalProfit,TotalSales,AvgShipCost
+Furniture,1.9,0.05,59249.46,660704.31,30.8
+Office Supplies,1.96,0.05,89524.97,551368.62,7.89
+Technology,1.95,0.05,75290.92,708664.3,9.46
