@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import bar_chart_race as bcr
+import matplotlib.animation as animation
 from scipy.stats import f_oneway
 from scipy.stats import ttest_ind
 
@@ -650,7 +651,58 @@ plt.show()
 
 
 
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    how='left',
+    on='region_id'
+)
 
+df['order_date'] = pd.to_datetime(df['order_date'])
+
+
+df['year_month'] = df['order_date'].dt.to_period('M')
+
+monthly_sales = df.groupby(
+    ['state_or_province', 'year_month']
+)['sales'].sum().reset_index()
+
+monthly_sales = monthly_sales.sort_values(['state_or_province', 'year_month'])
+
+monthly_sales['Cumulative_Sales'] = (
+    monthly_sales.groupby('state_or_province')['sales'].cumsum()
+)
+
+frames = sorted(monthly_sales['year_month'].unique())
+
+
+def animate(frame):
+
+    ax.clear()
+
+    data = monthly_sales[monthly_sales['year_month'] <= frame]
+
+    top_countries = (
+        data.groupby('state_or_province', as_index=False)['sales']
+        .sum()
+        .nlargest(10, 'sales')
+        .sort_values('sales', ascending=True)
+    )
+
+    ax.barh(
+        top_countries['state_or_province'],
+        top_countries['sales']
+    )
+
+    ax.set_title(f"Cumulative Sales up to {frame}")
+    ax.set_xlabel("Sales")
+
+
+anim = animation.FuncAnimation(fig, animate, frames=frames, interval=500, repeat=False)
+
+from IPython.display import HTML
+HTML(anim.to_jshtml())
+
+ 
 
 
 
