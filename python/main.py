@@ -4,6 +4,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import bar_chart_race as bcr
+from scipy.stats import f_oneway
+from scipy.stats import ttest_ind
+
 
 server = "INV-759"
 database = "ShopDB"
@@ -109,6 +113,30 @@ all_data["schema_dim.dim_region"].head(10)
 all_data["schema_dim.dim_region"].info()
 
 
+# %%
+
+##Check null values
+
+
+df = all_data["schema_fact.fact_shop"]
+
+null_counts = df.isnull().sum()
+print("Null counts per column:")
+print(null_counts)
+
+rows_with_nulls = df.isnull().any(axis=1).sum()
+print(f"\nTotal rows containing at least one null value: {rows_with_nulls}")
+
+numeric_cols = df.select_dtypes(include='number').columns
+df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
+
+print("\nNull counts after replacement:")
+print(df.isnull().sum())
+
+all_data["schema_fact.fact_shop"] = df
+
+print(df)
+
 
 
 # %%
@@ -126,6 +154,8 @@ df['delivery_days'] = (df['ship_date'] - df['order_date']).dt.days
 
 
 print(df[['order_date', 'ship_date', 'delivery_days']].head(10))
+
+
 
 # %%
 
@@ -209,7 +239,7 @@ print(top_10_customers)
 
 ## Export top 10 customers by sale in CSV file
 
-top_10_customers.to_csv('TopCustomersBySales.csv')
+top_10_customers.to_csv('TopCustomersBySales.csv', indexe=False)
 
 # %%
 
@@ -525,14 +555,19 @@ plt.show()
 
 ## Order Trend Over Time
 
-df = all_data['schema_fact.fact_shop']
+df = all_data['schema_fact.fact_shop'].copy()
 
-# datetime
-df['month'] = pd.to_datetime(df['order_date']).dt.month_name()
+df['order_date'] = pd.to_datetime(df['order_date'])
 
+# pravi mjesec kao datetime
+df['month'] = df['order_date'].dt.to_period('M').dt.to_timestamp()
 
-
-orders_by_date = df.groupby('month')['order_id'].count().reset_index()
+orders_by_date = (
+    df.groupby('month')['order_id']
+    .count()
+    .reset_index(name='orders')
+    .sort_values('month')
+)
 
 
 # plot
@@ -540,7 +575,7 @@ plt.figure(figsize=(12, 6))
 
 plt.plot(
     orders_by_date['month'],
-    orders_by_date['order_id'],
+    orders_by_date['orders'],
     color='red',
     label='Orders'
 )
@@ -568,7 +603,6 @@ plt.show()
 
 
 df = all_data['schema_fact.fact_shop']
-
 
 df['order_date'] = pd.to_datetime(df['order_date'])
 
@@ -612,45 +646,199 @@ plt.show()
 
 # %%
 
-
-## Cummulative sum
-
-df = all_data['schema_fact.fact_shop'].merge(
-    all_data['schema_dim.dim_region'],
-    how='left',
-    on='region_id'
-)
-
-# datetime
-##df['order_date'] = pd.to_datetime(df['order_date'])
-
-# mesec
-df['month'] = df['order_date'].dt.month
-
-# sales po mesecu i drzavi
-monthly_sales = df.groupby(['state_or_province', 'month'])['sales'].sum().reset_index()
+## Race bar chart with cummulative sum
 
 
-monthly_sales = monthly_sales.sort_values(['state_or_province', 'month'])
-
-
-monthly_sales['Cumulative_Sales'] = (
-    monthly_sales.groupby('state_or_province')['sales'].cumsum()
-)
-
-
-top_10_grouped = (
-    monthly_sales
-    .groupby('state_or_province', as_index=False)['Cumulative_Sales']
-    .sum()
-    .sort_values('Cumulative_Sales', ascending=False)
-    .nlargest(10, 'Cumulative_Sales')
-)
-
-print(top_10_grouped)
 
 
 
 
 
 # %%
+
+## Statistic signific difference
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+groups = [
+    df[df['region'] == r]['sales']
+    for r in df['region'].unique()
+]
+
+stat, p = f_oneway(*groups)
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+
+# %%
+
+## Statistic signific difference between West and East
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='West']
+group2 = df[df['region']=='East']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+# %%
+
+
+## Statistic signific difference between West and South 
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='West']
+group2 = df[df['region']=='South']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+
+# %%
+
+
+## Statistic signific difference between West and North 
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='West']
+group2 = df[df['region']=='North']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+
+# %%
+
+## Statistic signific difference between East and South 
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='East']
+group2 = df[df['region']=='South']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+
+# %%
+
+
+## Statistic signific difference between East and North 
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='East']
+group2 = df[df['region']=='North']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
+
+# %%
+
+
+## Statistic signific difference between South and North 
+
+df = all_data['schema_fact.fact_shop'].merge(
+    all_data['schema_dim.dim_region'],
+    on='region_id',
+    how='left'
+)
+
+
+#define samples
+group1 = df[df['region']=='South']
+group2 = df[df['region']=='North']
+
+
+stat, p = ttest_ind(group1['sales'], group2['sales'])
+
+print("p-value:", p)
+
+if p < 0.05:
+    print("Statistically significant difference exists")
+else:
+    print("No significant difference")
+
