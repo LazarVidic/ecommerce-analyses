@@ -42,7 +42,7 @@ def create_dimensions(df):
     ].drop_duplicates(subset=["customer_key"])
 
     dim_product = df[
-        ["product_category", "product_subcategory", "product_container",
+        ["product_category", "product_subcategory", "product_container", 
          "product_name", "product_base_margin"]
     ].drop_duplicates(subset=["product_name"])
 
@@ -52,6 +52,8 @@ def create_dimensions(df):
 
     dim_ship_mode      = df[["ship_mode"]].drop_duplicates()
     dim_order_priority = df[["order_priority"]].drop_duplicates()
+
+    dim_organized_region = df[["region"]].drop_duplicates().rename(columns={"region": "org_region"})
 
     all_dates = pd.concat([df["order_date"], df["ship_date"]]) \
                   .dropna().drop_duplicates() \
@@ -63,14 +65,61 @@ def create_dimensions(df):
         "dim_region":         dim_region,
         "dim_ship_mode":      dim_ship_mode,
         "dim_order_priority": dim_order_priority,
+        "dim_organized_region": dim_organized_region
     }, all_dates  
 
 def load_dimensions(dims, engine):
-    for table_name, df in dims.items():
-            df.to_sql(
-                name=table_name, schema="schema_dim",
-                con=engine, if_exists="append", index=False,
+    unique_keys = {
+        "dim_customer": ["customer_key"],
+        "dim_product": ["product_name"],
+        "dim_region": ["state_or_province", "postal_code"],
+        "dim_ship_mode": ["ship_mode"],
+        "dim_order_priority": ["order_priority"],
+        "dim_organized_region": ["org_region"],
+    }
+
+    with engine.connect() as conn:
+        for table_name, df in dims.items():
+            keys = unique_keys[table_name]
+
+            existing = pd.read_sql(
+                text(f"""
+                    SELECT {", ".join(keys)}
+                    FROM schema_dim.{table_name}
+                """),
+                conn
             )
+
+            existing_keys = set(
+                existing[keys]
+                .fillna("")
+                .astype(str)
+                .agg("|".join, axis=1)
+            )
+
+            new_keys = (
+                df[keys]
+                .fillna("")
+                .astype(str)
+                .agg("|".join, axis=1)
+            )
+
+            new_rows = df[~new_keys.isin(existing_keys)].copy()
+
+            if new_rows.empty:
+                print(f" {table_name}: No new rows")
+                continue
+
+            new_rows.to_sql(
+                name=table_name,
+                schema="schema_dim",
+                con=engine,
+                if_exists="append",
+                index=False,
+            )
+
+    print(f" {table_name}: Added {len(new_rows)} new rows")
+
 
 
 
@@ -111,12 +160,16 @@ def load_dimension_keys(engine):
         priority = pd.read_sql(text("""
             SELECT order_priority_id, order_priority FROM schema_dim.dim_order_priority
         """), conn)
+        organized_region = pd.read_sql(text("""
+            SELECT organized_region_id, org_region FROM schema_dim.dim_organized_region
+        """), conn)
     return {
         "customer":  customer,
         "product":   product,
         "region":    region,
         "ship_mode": ship_mode,
         "priority":  priority,
+        "organized_region": organized_region
     }
 
 def build_fact(df, dim_keys):
@@ -124,6 +177,7 @@ def build_fact(df, dim_keys):
     product   = dim_keys["product"].drop_duplicates(subset=["product_name"])
     ship_mode = dim_keys["ship_mode"].drop_duplicates(subset=["ship_mode"])
     priority  = dim_keys["priority"].drop_duplicates(subset=["order_priority"])
+    organized_region  = dim_keys["organized_region"].drop_duplicates(subset=["org_region"])
     region    = dim_keys["region"].drop_duplicates(subset=["state_or_province", "postal_code"])
 
     customer_map = customer.set_index("customer_key")["customer_id"].to_dict()
@@ -145,7 +199,12 @@ def build_fact(df, dim_keys):
     priority_map = priority.set_index("order_priority")["order_priority_id"].to_dict()
     df["order_priority_fk"] = df["order_priority"].map(priority_map)
 
-    fk_cols = ["customer_fk", "product_fk", "region_fk", "ship_mode_fk", "order_priority_fk"]
+    organized_region_map = organized_region.set_index("org_region")["organized_region_id"].to_dict()
+    df["organized_region_fk"] = df["region"].map(organized_region_map)
+    ##print(df.columns)
+
+
+    fk_cols = ["customer_fk", "product_fk", "region_fk", "ship_mode_fk", "order_priority_fk", "organized_region_fk"]
     print("NULL FK counts:\n", df[fk_cols].isnull().sum())
 
     bad = df[df[fk_cols].isnull().any(axis=1)]
@@ -155,7 +214,7 @@ def build_fact(df, dim_keys):
 
     fact = df[[
         "order_id", "product_fk", "ship_mode_fk", "order_priority_fk",
-        "customer_fk", "region_fk", "profit", "sales", "ship_date",
+        "customer_fk", "region_fk", "profit", "sales", "ship_date", "organized_region_fk",
         "unit_price", "order_date", "ship_cost", "discount", "quantity_ordered_new",
     ]].rename(columns={
         "customer_fk": "customer_id",
@@ -163,10 +222,11 @@ def build_fact(df, dim_keys):
         "region_fk": "region_id",
         "ship_mode_fk": "ship_mode_id",
         "order_priority_fk":"order_priority_id",
+        "organized_region_fk": "organized_region_id"
     })
 
     fact = fact.dropna(subset=["customer_id", "product_id", "region_id",
-                                "ship_mode_id", "order_priority_id"])
+                                "ship_mode_id", "order_priority_id", "organized_region_id"])
     return fact
 
 def load_fact(fact_df, engine):
